@@ -1,5 +1,8 @@
 package com.gc.materialdesign.widgets;
 
+import java.util.Timer;
+import java.util.TimerTask;
+
 import android.app.Activity;
 import android.app.Dialog;
 import android.graphics.Color;
@@ -35,6 +38,14 @@ public class SnackBar extends Dialog{
 	private boolean mIndeterminate = false;
 	private int mTimer = 3 * 1000;
 	
+	
+	// Junbong - 
+	// To reuse instance and avoid 'Thread - IllegalStateException' 
+	// when call 'show()' again after dismissed
+	private Timer mDismissTimer;
+	
+	
+	
 	// With action button
 	public SnackBar(Activity activity, String text, String buttonText, View.OnClickListener onClickListener) {
 		super(activity, android.R.style.Theme_Translucent);
@@ -67,7 +78,6 @@ public class SnackBar extends Dialog{
 			button.setTextColor(buttonTextColor);
 			
 			button.setOnClickListener(new View.OnClickListener() {
-				
 				@Override
 				public void onClick(View v) {
 					dismiss();
@@ -94,14 +104,45 @@ public class SnackBar extends Dialog{
 		super.show();
 		view.setVisibility(View.VISIBLE);
 		view.startAnimation(AnimationUtils.loadAnimation(activity, R.anim.snackbar_show_animation));
+		
 		if (!mIndeterminate) {
-		    dismissTimer.start();
+			/* Replace Thread with Timer
+	    	dismissTimer.start();
+	    	*/
+	    	
+	    	onSetDimissTimer(mTimer);
 		}
 	}
 	
-	// Dismiss timer 
+	
+	public void show(int dismissDelay) {
+		setDismissTimer(dismissDelay);
+		show();
+	}
+	
+	
+	/**
+	 * @param delay delay time in millisecond
+	 * @author Junbong
+	 */
+	protected void onSetDimissTimer(int delay) {
+		if (mDismissTimer != null) mDismissTimer.cancel();
+    	mDismissTimer = new Timer();
+    	
+    	// New delay from now
+    	mDismissTimer.schedule(new TimerTask() {
+			@Override
+			public void run() {
+				handler.sendMessage(new Message());
+			}
+		}, mTimer);
+	}
+	
+	
+	// Dismiss timer
+	/* Junbong - 
+	 * Replace Thread with Timer
 	Thread dismissTimer = new Thread(new Runnable() {
-		
 		@Override
 		public void run() {
 			try {
@@ -109,12 +150,13 @@ public class SnackBar extends Dialog{
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
+			
 			handler.sendMessage(new Message());
 		}
 	});
+	*/
 	
 	Handler handler = new Handler(new Handler.Callback() {
-		
 		@Override
 		public boolean handleMessage(Message msg) {
 			 if(onHideListener != null) {
@@ -130,16 +172,15 @@ public class SnackBar extends Dialog{
 	 */
 	@Override
 	public void dismiss() {
+		if (mDismissTimer != null) mDismissTimer.cancel();
+		
 		Animation anim = AnimationUtils.loadAnimation(activity, R.anim.snackbar_hide_animation);
 		anim.setAnimationListener(new AnimationListener() {
+			@Override
+			public void onAnimationStart(Animation animation) {}
 			
 			@Override
-			public void onAnimationStart(Animation animation) {
-			}
-			
-			@Override
-			public void onAnimationRepeat(Animation animation) {
-			}
+			public void onAnimationRepeat(Animation animation) {}
 			
 			@Override
 			public void onAnimationEnd(Animation animation) {
@@ -169,7 +210,10 @@ public class SnackBar extends Dialog{
 	public boolean isIndeterminate() {
 		return mIndeterminate;
 	}
-
+	
+	/**
+	 * @param time delay to dismiss in millisecond
+	 */
 	public void setDismissTimer(int time) {
 		mTimer = time;
 	}
